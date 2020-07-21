@@ -10,15 +10,18 @@
 
 #include <vector>
 #include <chrono>
+#include <memory>
 
+#define SLAB_ALLOC 0
 
-struct TransformStorage
+#if SLAB_ALLOC
+struct TransformStorageSlab
 {
-    explicit TransformStorage(size_t SlabSize) : SlabIndex(-1), SlabSize(SlabSize)
+    explicit TransformStorageSlab(size_t SlabSize) : SlabIndex(-1), SlabSize(SlabSize)
     {
         AllocSlab();
     }
-    ~TransformStorage()
+    ~TransformStorageSlab()
     {
         for (size_t idx = 0; idx < Slabs.size(); ++idx)
         {
@@ -51,8 +54,23 @@ struct TransformStorage
 };
 
 constexpr size_t TransformSlabSize = 16384 / sizeof(mat4);
-static TransformStorage LocalTransforms(TransformSlabSize);
-static TransformStorage WorldTransforms(TransformSlabSize);
+static TransformStorageSlab LocalTransforms(TransformSlabSize);
+static TransformStorageSlab WorldTransforms(TransformSlabSize);
+#else
+struct TransformStorageObjectOriented
+{
+    mat4* Alloc()
+    {
+        Transforms.emplace_back(std::make_unique<mat4>());
+        return Transforms.back().get();
+    }
+
+    std::vector<std::unique_ptr<mat4>> Transforms;
+};
+
+static TransformStorageObjectOriented LocalTransforms;
+static TransformStorageObjectOriented WorldTransforms;
+#endif
 
 template<class EntityType, typename ... Args>
 EntityType* MakeEntity(std::vector<Entity *>& trackingArray, Args&&... args)
