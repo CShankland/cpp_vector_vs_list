@@ -10,7 +10,8 @@
 class Modifier : public Entity
 {
 public:
-    Modifier(Entity* target, float speed) : rotation(0), speed(speed), target(target) {}
+    Modifier(mat4* worldTransform, mat4* localTransform, Entity* target, float speed)
+        : Entity(worldTransform, localTransform), rotation(0), speed(speed), target(target) {}
 
     void update() override;
 private:

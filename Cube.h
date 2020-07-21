@@ -10,7 +10,8 @@
 class Cube : public Entity
 {
 public:
-    Cube(float size, v4 const& color) : mSize(size), mColor(color) {}
+    Cube(mat4* worldTransform, mat4* localTransform, float size, v4 const& color)
+        : Entity(worldTransform, localTransform), mSize(size), mColor(color) {}
 
     void draw(Renderer& renderer) override;
 

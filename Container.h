@@ -9,6 +9,9 @@
 class Container : public Entity
 {
 public:
+    Container(mat4* worldTransform, mat4* localTransform)
+        : Entity(worldTransform, localTransform) {}
+
     void addChild(Entity* entity);
 
     void update() override;

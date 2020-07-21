@@ -4,8 +4,8 @@
 
 #include "Entity.h"
 
-Entity::Entity()
-    : mParent(nullptr), mWorldTransform(IdentityMat4()), mLocalTransform(IdentityMat4()) {}
+Entity::Entity(mat4* worldTransform, mat4* localTransform)
+    : mParent(nullptr), mWorldTransform(worldTransform), mLocalTransform(localTransform) {}
 
 void Entity::update()
 {
@@ -16,11 +16,11 @@ void Entity::updateTransform()
 {
     if (mParent)
     {
-        mWorldTransform = Mat4Multiply(mParent->mWorldTransform, mLocalTransform);
+        *mWorldTransform = Mat4Multiply(*mParent->mWorldTransform, *mLocalTransform);
     }
     else
     {
-        mWorldTransform = mLocalTransform;
+        *mWorldTransform = *mLocalTransform;
     }
 }
 

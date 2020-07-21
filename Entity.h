@@ -9,7 +9,7 @@
 
 class Entity {
 public:
-    Entity();
+    Entity(mat4* worldTransform, mat4* localTransform);
     virtual ~Entity() = default;
 
     virtual void update();
@@ -17,7 +17,7 @@ public:
     virtual void draw(Renderer& renderer);
 
     Entity* mParent;
-    mat4 mWorldTransform;
-    mat4 mLocalTransform;
+    mat4* mWorldTransform;
+    mat4* mLocalTransform;
 };
 

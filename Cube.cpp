@@ -8,5 +8,5 @@ void Cube::draw(Renderer& renderer)
 {
     Entity::draw(renderer);
 
-    renderer.pushCube(mWorldTransform, mColor, mSize);
+    renderer.pushCube(*mWorldTransform, mColor, mSize);
 }

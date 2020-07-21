@@ -18,5 +18,5 @@ void Modifier::update()
           0,    0, 0, 1
     };
 
-    target->mLocalTransform = Mat4Multiply(mLocalTransform, rotationMatrix);
+    *target->mLocalTransform = Mat4Multiply(*mLocalTransform, rotationMatrix);
 }

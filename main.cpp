@@ -11,10 +11,53 @@
 #include <vector>
 #include <chrono>
 
+
+struct TransformStorage
+{
+    explicit TransformStorage(size_t SlabSize) : SlabIndex(-1), SlabSize(SlabSize)
+    {
+        AllocSlab();
+    }
+    ~TransformStorage()
+    {
+        for (size_t idx = 0; idx < Slabs.size(); ++idx)
+        {
+            delete[] Slabs[idx];
+        }
+    }
+
+    mat4* Alloc()
+    {
+        if (SlabIndex >= SlabSize)
+        {
+            AllocSlab();
+        }
+
+        mat4* slab = Slabs.back();
+        return slab + SlabIndex++;
+    }
+
+    void AllocSlab()
+    {
+        mat4* slab = new mat4[SlabSize];
+        Slabs.push_back(slab);
+
+        SlabIndex = 0;
+    }
+
+    std::vector<mat4*> Slabs;
+    size_t SlabIndex;
+    size_t SlabSize;
+};
+
+constexpr size_t TransformSlabSize = 16384 / sizeof(mat4);
+static TransformStorage LocalTransforms(TransformSlabSize);
+static TransformStorage WorldTransforms(TransformSlabSize);
+
 template<class EntityType, typename ... Args>
 EntityType* MakeEntity(std::vector<Entity *>& trackingArray, Args&&... args)
 {
-    EntityType* result = new EntityType(std::forward<Args>(args)...);
+    EntityType* result = new EntityType(WorldTransforms.Alloc(), LocalTransforms.Alloc(), std::forward<Args>(args)...);
     trackingArray.push_back(result);
     return result;
 }
@@ -39,7 +82,7 @@ Container* BuildLevel(int depth, int count, float size, mat4 const& position, st
     Container* parent = MakeEntity<Container>(container);
 
     Modifier* rotator = MakeEntity<Modifier>(container, parent, 0.125f * (float) depth * 2);
-    rotator->mLocalTransform = Mat4Multiply(position, Mat4Translation({ 0, (float) size * -3.5f, 0 }));
+    *rotator->mLocalTransform = Mat4Multiply(position, Mat4Translation({ 0, (float) size * -3.5f, 0 }));
     parent->addChild(rotator);
 
     // We're going to make 2 rows of children spaced by size/2 on either side
@@ -57,8 +100,8 @@ Container* BuildLevel(int depth, int count, float size, mat4 const& position, st
         Cube* leftCube = MakeEntity<Cube>(container, size, color);
         Cube* rightCube = MakeEntity<Cube>(container, size, color);
 
-        leftCube->mLocalTransform = leftPosition;
-        rightCube->mLocalTransform = rightPosition;
+        *leftCube->mLocalTransform = leftPosition;
+        *rightCube->mLocalTransform = rightPosition;
 
         parent->addChild(leftCube);
         parent->addChild(rightCube);
