@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     window.init("Cool Test", width, height);
     renderer.init(width, height);
 
-    Entity* root = BuildLevel(3, 3, 25, IdentityMat4(), entities);
+    Entity* root = BuildLevel(3, 7, 25, IdentityMat4(), entities);
 
     while (window.beginFrame())
     {
