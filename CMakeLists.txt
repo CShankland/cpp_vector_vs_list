@@ -6,8 +6,33 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(SOURCE main.cpp main.cpp)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}")
 
+# opengl
+find_package(OpenGL REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIRS})
+
+# glew
+add_subdirectory(lib/glew)
+include_directories(lib/glew/include)
+
+# glfw
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_DOCS OFF)
+add_subdirectory(lib/glfw)
+include_directories(lib/glfw/include)
+
+set(SOURCE main.cpp Window.cpp Window.h Entity.cpp Entity.h Math.h Cube.cpp Cube.h Renderer.cpp Renderer.h Container.cpp Container.h Modifier.cpp Modifier.h)
 add_executable(VectorVsList ${SOURCE})
+
+target_include_directories(VectorVsList PUBLIC "${PROJECT_BINARY_DIR}")
+
+target_link_libraries(VectorVsList ${OPENGL_LIBRARIES})
+target_link_libraries(VectorVsList libglew_shared)
+target_link_libraries(VectorVsList glfw ${GLFW_LIBRARIES})
 
 install(TARGETS VectorVsList RUNTIME DESTINATION bin)
