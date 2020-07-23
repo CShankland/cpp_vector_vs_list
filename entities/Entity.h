@@ -4,8 +4,8 @@
 // Created by chris on 7/18/2020.
 //
 
-#include "Math.h"
-#include "Renderer.h"
+#include "../Math.h"
+#include "../Renderer.h"
 
 class Entity {
 public:

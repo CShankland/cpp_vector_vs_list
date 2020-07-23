@@ -44,23 +44,26 @@ char kVertexShader[] = R"glsl(
 
 uniform mat4 projection;
 uniform mat4 view;
-uniform mat4 transform;
-uniform vec4 color;
-uniform float size;
 
 layout(location = 0) in vec3 v_position;
+layout(location = 1) in vec4 v_color;
+layout(location = 2) in float v_size;
+layout(location = 3) in mat4 v_transform;
+
+layout(location = 0) out vec4 color;
 
 void main(void) {
-    vec4 position = vec4(v_position * size, 1.0);
-    gl_Position = projection * view * transform * position;
+    vec4 position = vec4(v_position * v_size, 1.0);
+    gl_Position = projection * view * v_transform * position;
+
+    color = v_color;
 }
 )glsl";
 
 char kFragmentShader[] = R"glsl(
 #version 410
 
-uniform vec4 color;
-
+layout(location = 0) in vec4 color;
 out vec4 frag_color;
 
 void main(void) {
@@ -114,9 +117,6 @@ void Renderer::init(int screenWidth, int screenHeight)
 
     mUniformProjection = glGetUniformLocation(mShader, "projection");
     mUniformView = glGetUniformLocation(mShader, "view");
-    mUniformTransform = glGetUniformLocation(mShader, "transform");
-    mUniformColor = glGetUniformLocation(mShader, "color");
-    mUniformSize = glGetUniformLocation(mShader, "size");
 
     glGenVertexArrays(1, &mVertexArray);
     glBindVertexArray(mVertexArray);
@@ -130,13 +130,47 @@ void Renderer::init(int screenWidth, int screenHeight)
     glBufferData(GL_ARRAY_BUFFER, sizeof(kVertexData), &kVertexData[0], GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
+    glVertexAttribDivisor(0, 0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    glGenBuffers(1, &mInstanceDataVertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, mInstanceDataVertexBuffer);
+
+    size_t stride = sizeof(CubeRecord);
+    size_t positionOffset = offsetof(CubeRecord, position);
+    size_t colorOffset = offsetof(CubeRecord, color);
+    size_t sizeOffset = offsetof(CubeRecord, size);
+
+    // v_color
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, stride, (void*) colorOffset);
+    glVertexAttribDivisor(1, 1);
+
+    // v_size
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, (void*) sizeOffset);
+    glVertexAttribDivisor(2, 1);
+
+    // v_transform
+    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
+    glEnableVertexAttribArray(5);
+    glEnableVertexAttribArray(6);
+
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, (void*) positionOffset);
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, stride, (void*) (positionOffset + 1 * sizeof(v4)));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, stride, (void*) (positionOffset + 2 * sizeof(v4)));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, stride, (void*) (positionOffset + 3 * sizeof(v4)));
+    glVertexAttribDivisor(3, 1);
+    glVertexAttribDivisor(4, 1);
+    glVertexAttribDivisor(5, 1);
+    glVertexAttribDivisor(6, 1);
 
     glBindVertexArray(0);
 
     mCameraAngle = 0.0f;
     mProjection = ProjectionPerspective((float) screenWidth / (float) screenHeight, 45.0f * DegToRad, 1.0f, 10000.0f);
-    // mProjection = ProjectionOrtho(screenWidth / 2.0f, -screenWidth / 2.0f, screenHeight / 2.0f, -screenHeight / 2.0f, -1, 1);
+    instanceBufferSize = 0;
 }
 
 void Renderer::term()
@@ -146,11 +180,24 @@ void Renderer::term()
 
 void Renderer::pushCube(mat4 const& transform, v4 const& color, float size)
 {
-    mCubes.push_back({ transform, color, size });
+    mCubes.push_back({ Transpose(transform), color, size });
 }
 
 void Renderer::flush()
 {
+    glBindBuffer(GL_ARRAY_BUFFER, mInstanceDataVertexBuffer);
+
+    size_t byteCount = sizeof(CubeRecord) * mCubes.size();
+    if (instanceBufferSize >= byteCount)
+    {
+        glBufferSubData(GL_ARRAY_BUFFER, 0, byteCount, (void*) mCubes.data());
+    }
+    else
+    {
+        glBufferData(GL_ARRAY_BUFFER, byteCount, (void*) mCubes.data(), GL_DYNAMIC_DRAW);
+        instanceBufferSize = byteCount;
+    }
+
     // mCameraAngle += 1;
     float zoom = 1000.0f;
     float x = cosf(mCameraAngle * DegToRad) * zoom;
@@ -165,14 +212,9 @@ void Renderer::flush()
     glUniformMatrix4fv(mUniformProjection, 1, GL_TRUE, (GLfloat *) &mProjection);
     glUniformMatrix4fv(mUniformView, 1, GL_TRUE, (GLfloat *) &mView);
 
-    for (auto& entry : mCubes)
-    {
-        glUniformMatrix4fv(mUniformTransform, 1, GL_TRUE, (GLfloat *) &entry.position);
-        glUniform4fv(mUniformColor, 1, (GLfloat *) &entry.color);
-        glUniform1fv(mUniformSize, 1, &entry.size);
-
-        glDrawElements(GL_TRIANGLES, sizeof(kIndexData) / sizeof(kIndexData[0]), GL_UNSIGNED_SHORT, nullptr);
-    }
+    size_t elementCount = sizeof(kIndexData) / sizeof(kIndexData[0]);
+    size_t instanceCount = mCubes.size();
+    glDrawElementsInstanced(GL_TRIANGLES, elementCount, GL_UNSIGNED_SHORT, nullptr, instanceCount);
 
     mCubes.clear();
 }

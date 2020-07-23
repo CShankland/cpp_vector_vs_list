@@ -26,7 +26,7 @@ set(GLFW_BUILD_DOCS OFF)
 add_subdirectory(lib/glfw)
 include_directories(lib/glfw/include)
 
-set(SOURCE main.cpp Window.cpp Window.h Entity.cpp Entity.h Math.h Cube.cpp Cube.h Renderer.cpp Renderer.h Container.cpp Container.h Modifier.cpp Modifier.h)
+set(SOURCE main.cpp Window.cpp Window.h entities/Entity.cpp entities/Entity.h Math.h entities/Cube.cpp entities/Cube.h Renderer.cpp Renderer.h entities/Container.cpp entities/Container.h entities/Modifier.cpp entities/Modifier.h allocators/TransformAllocator.h allocators/TransformSlabAllocator.cpp allocators/TransformSlabAllocator.h allocators/TransformSystemAllocator.cpp allocators/TransformSystemAllocator.h)
 add_executable(VectorVsList ${SOURCE})
 
 target_include_directories(VectorVsList PUBLIC "${PROJECT_BINARY_DIR}")

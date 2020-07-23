@@ -4,81 +4,42 @@
 
 #include "Window.h"
 #include "Renderer.h"
-#include "Cube.h"
-#include "Container.h"
-#include "Modifier.h"
+#include "entities/Cube.h"
+#include "entities/Container.h"
+#include "entities/Modifier.h"
+#include "allocators/TransformAllocator.h"
+#include "allocators/TransformSystemAllocator.h"
+#include "allocators/TransformSlabAllocator.h"
 
 #include <vector>
 #include <chrono>
 #include <memory>
+#include <unordered_map>
 
-#define SLAB_ALLOC 0
-
-#if SLAB_ALLOC
-struct TransformStorageSlab
+struct EntityContext
 {
-    explicit TransformStorageSlab(size_t SlabSize) : SlabIndex(-1), SlabSize(SlabSize)
+    template <class Allocator>
+    void init()
     {
-        AllocSlab();
-    }
-    ~TransformStorageSlab()
-    {
-        for (size_t idx = 0; idx < Slabs.size(); ++idx)
-        {
-            delete[] Slabs[idx];
-        }
+        localTransformAllocator = std::make_unique<Allocator>();
+        worldTransformAllocator = std::make_unique<Allocator>();
     }
 
-    mat4* Alloc()
+    std::vector<Entity *> allEntities;
+    std::unique_ptr<TransformAllocator> localTransformAllocator;
+    std::unique_ptr<TransformAllocator> worldTransformAllocator;
+
+    template<class EntityType, typename ... Args>
+    EntityType* MakeEntity(Args&&... args)
     {
-        if (SlabIndex >= SlabSize)
-        {
-            AllocSlab();
-        }
+        mat4* worldTransform = worldTransformAllocator->alloc();
+        mat4* localTransform = localTransformAllocator->alloc();
 
-        mat4* slab = Slabs.back();
-        return slab + SlabIndex++;
+        EntityType* result = new EntityType(worldTransform, localTransform, std::forward<Args>(args)...);
+        allEntities.push_back(result);
+        return result;
     }
-
-    void AllocSlab()
-    {
-        mat4* slab = new mat4[SlabSize];
-        Slabs.push_back(slab);
-
-        SlabIndex = 0;
-    }
-
-    std::vector<mat4*> Slabs;
-    size_t SlabIndex;
-    size_t SlabSize;
 };
-
-constexpr size_t TransformSlabSize = 16384 / sizeof(mat4);
-static TransformStorageSlab LocalTransforms(TransformSlabSize);
-static TransformStorageSlab WorldTransforms(TransformSlabSize);
-#else
-struct TransformStorageObjectOriented
-{
-    mat4* Alloc()
-    {
-        Transforms.emplace_back(std::make_unique<mat4>());
-        return Transforms.back().get();
-    }
-
-    std::vector<std::unique_ptr<mat4>> Transforms;
-};
-
-static TransformStorageObjectOriented LocalTransforms;
-static TransformStorageObjectOriented WorldTransforms;
-#endif
-
-template<class EntityType, typename ... Args>
-EntityType* MakeEntity(std::vector<Entity *>& trackingArray, Args&&... args)
-{
-    EntityType* result = new EntityType(WorldTransforms.Alloc(), LocalTransforms.Alloc(), std::forward<Args>(args)...);
-    trackingArray.push_back(result);
-    return result;
-}
 
 static v4 Colors[] = {
 { 1, 0, 0, 1 },
@@ -90,16 +51,16 @@ static v4 Colors[] = {
 { 1, 1, 1, 1 }
 };
 
-Container* BuildLevel(int depth, int count, float size, mat4 const& position, std::vector<Entity*>& container)
+Container* BuildLevel(int depth, int count, float size, mat4 const& position, EntityContext& ctx)
 {
     if (depth < 0)
     {
         return nullptr;
     }
 
-    Container* parent = MakeEntity<Container>(container);
+    Container* parent = ctx.MakeEntity<Container>();
 
-    Modifier* rotator = MakeEntity<Modifier>(container, parent, 0.125f * (float) depth * 2);
+    Modifier* rotator = ctx.MakeEntity<Modifier>(parent, (float) (depth * depth) * 0.125f);
     *rotator->mLocalTransform = Mat4Multiply(position, Mat4Translation({ 0, (float) size * -3.5f, 0 }));
     parent->addChild(rotator);
 
@@ -115,8 +76,8 @@ Container* BuildLevel(int depth, int count, float size, mat4 const& position, st
         mat4 leftPosition = Mat4Translation(start + deltax * (float) cubeIdx);
         mat4 rightPosition = Mat4Translation(start + deltax * (float) cubeIdx + deltaz);
 
-        Cube* leftCube = MakeEntity<Cube>(container, size, color);
-        Cube* rightCube = MakeEntity<Cube>(container, size, color);
+        Cube* leftCube = ctx.MakeEntity<Cube>(size, color);
+        Cube* rightCube = ctx.MakeEntity<Cube>(size, color);
 
         *leftCube->mLocalTransform = leftPosition;
         *rightCube->mLocalTransform = rightPosition;
@@ -124,8 +85,8 @@ Container* BuildLevel(int depth, int count, float size, mat4 const& position, st
         parent->addChild(leftCube);
         parent->addChild(rightCube);
 
-        Container* leftContainer = BuildLevel(depth - 1, count, size, leftPosition, container);
-        Container* rightContainer = BuildLevel(depth - 1, count, size, rightPosition, container);
+        Container* leftContainer = BuildLevel(depth - 1, count, size, leftPosition, ctx);
+        Container* rightContainer = BuildLevel(depth - 1, count, size, rightPosition, ctx);
 
         if (leftContainer != nullptr)
         {
@@ -137,6 +98,8 @@ Container* BuildLevel(int depth, int count, float size, mat4 const& position, st
     return parent;
 }
 
+std::unordered_map<char const*, uint64_t> gTimePoints;
+
 using TimePoint = std::chrono::high_resolution_clock::time_point;
 struct TimedBlock
 {
@@ -144,17 +107,17 @@ struct TimedBlock
     ~TimedBlock()
     {
         TimePoint now = std::chrono::high_resolution_clock::now();
-        printf("[Time Point] %s: %lldus\n", label, std::chrono::duration_cast<std::chrono::microseconds>(now - start).count());
+        gTimePoints[label] += std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
     }
 
     char const* label;
     TimePoint start;
 };
 
+#define SLAB_ALLOC 0
+
 int main(int argc, char *argv[])
 {
-    std::vector<Entity *> entities;
-
     Window window;
     Renderer renderer;
 
@@ -164,7 +127,16 @@ int main(int argc, char *argv[])
     window.init("Cool Test", width, height);
     renderer.init(width, height);
 
-    Entity* root = BuildLevel(3, 7, 25, IdentityMat4(), entities);
+    EntityContext ctx;
+#if SLAB_ALLOC
+    ctx.init<TransformSlabAllocator>();
+#else
+    ctx.init<TransformSystemAllocator>();
+#endif
+
+    Entity* root = BuildLevel(3, 6, 25, IdentityMat4(), ctx);
+
+    int frameCount = 0;
 
     while (window.beginFrame())
     {
@@ -188,13 +160,25 @@ int main(int argc, char *argv[])
             TimedBlock swap("Frame Swap");
             window.endFrame();
         }
+
+        ++frameCount;
     }
 
-    for (auto& entity : entities)
+#if SLAB_ALLOC
+    printf("=== Slab Allocated Transforms ===\n");
+#else
+    printf("=== System Allocated Transforms ===\n\n");
+#endif
+
+    printf("Total frames: %d\n", frameCount);
+    printf("Total cubes: %d\n\n", ctx.allEntities.size());
+    for (auto& entry : gTimePoints)
     {
-        delete entity;
+        char const* label = entry.first;
+        uint64_t avg = entry.second / frameCount;
+
+        printf("[Time Point] %s: %lldus\n", label, avg);
     }
-    entities.clear();
 
     renderer.term();
     window.term();

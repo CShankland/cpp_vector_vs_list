@@ -187,6 +187,7 @@ float Inner(v3 a, v3 b)
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+#pragma pack(push, 1)
 union v4
 {
     struct
@@ -196,6 +197,7 @@ union v4
 
     float E[4];
 };
+#pragma pack(pop)
 
 inline
 v4 V4(float x, float y, float z, float w)
@@ -203,6 +205,7 @@ v4 V4(float x, float y, float z, float w)
     return { x, y, z, w };
 }
 
+#pragma pack(push, 1)
 union mat4
 {
     float E[16];
@@ -214,6 +217,7 @@ union mat4
         v4 r3;
     };
 };
+#pragma pack(pop)
 
 inline mat4
 IdentityMat4()
@@ -239,7 +243,18 @@ Mat4Translation(v3 translation)
 }
 
 inline mat4
-Mat4Multiply(mat4 a, mat4 b)
+Transpose(mat4 const& mat)
+{
+    return {
+        mat.E[0], mat.E[4],  mat.E[8], mat.E[12],
+        mat.E[1], mat.E[5],  mat.E[9], mat.E[13],
+        mat.E[2], mat.E[6], mat.E[10], mat.E[14],
+        mat.E[3], mat.E[7], mat.E[11], mat.E[15]
+    };
+}
+
+inline mat4
+Mat4Multiply(mat4 const& a, mat4 const& b)
 {
     float m00 = a.E[ 0] * b.E[ 0] + a.E[ 1] * b.E[ 4] + a.E[ 2] * b.E[ 8] + a.E[ 3] * b.E[12];
     float m01 = a.E[ 0] * b.E[ 1] + a.E[ 1] * b.E[ 5] + a.E[ 2] * b.E[ 9] + a.E[ 3] * b.E[13];

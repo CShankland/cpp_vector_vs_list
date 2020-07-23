@@ -5,7 +5,7 @@
 //
 
 #include "Entity.h"
-#include "Math.h"
+#include "../Math.h"
 
 class Cube : public Entity
 {
