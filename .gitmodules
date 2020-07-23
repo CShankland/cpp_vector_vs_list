@@ -1,0 +1,6 @@
+[submodule "lib/glew"]
+	path = lib/glew
+	url = git@github.com:CShankland/glew-cmake.git
+[submodule "lib/glfw"]
+	path = lib/glfw
+	url = git@github.com:CShankland/glfw.git
