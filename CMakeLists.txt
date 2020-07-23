@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project (VectorVsList)
+project (SpinningCubes)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -27,12 +27,12 @@ add_subdirectory(lib/glfw)
 include_directories(lib/glfw/include)
 
 set(SOURCE main.cpp Window.cpp Window.h entities/Entity.cpp entities/Entity.h Math.h entities/Cube.cpp entities/Cube.h Renderer.cpp Renderer.h entities/Container.cpp entities/Container.h entities/Modifier.cpp entities/Modifier.h allocators/TransformAllocator.h allocators/TransformSlabAllocator.cpp allocators/TransformSlabAllocator.h allocators/TransformSystemAllocator.cpp allocators/TransformSystemAllocator.h)
-add_executable(VectorVsList ${SOURCE})
+add_executable(SpinningCubes ${SOURCE})
 
-target_include_directories(VectorVsList PUBLIC "${PROJECT_BINARY_DIR}")
+target_include_directories(SpinningCubes PUBLIC "${PROJECT_BINARY_DIR}")
 
-target_link_libraries(VectorVsList ${OPENGL_LIBRARIES})
-target_link_libraries(VectorVsList libglew_shared)
-target_link_libraries(VectorVsList glfw ${GLFW_LIBRARIES})
+target_link_libraries(SpinningCubes ${OPENGL_LIBRARIES})
+target_link_libraries(SpinningCubes libglew_shared)
+target_link_libraries(SpinningCubes glfw ${GLFW_LIBRARIES})
 
-install(TARGETS VectorVsList RUNTIME DESTINATION bin)
+install(TARGETS SpinningCubes RUNTIME DESTINATION bin)
